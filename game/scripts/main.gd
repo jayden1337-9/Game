@@ -373,7 +373,19 @@ func _equip_best() -> void:
 
 func _draw() -> void:
     var view := get_viewport_rect().size
-    draw_rect(Rect2(Vector2.ZERO, view), Color("#7896a0"))
+    # Storybook sky: layered dusk-blue with distant rolling hills.
+    draw_rect(Rect2(Vector2.ZERO, view), Color("#9aa9a0"))
+    draw_rect(Rect2(Vector2(0, 0), Vector2(view.x, view.y * 0.48)), Color("#a9b9b0"))
+    draw_rect(Rect2(Vector2(0, view.y * 0.48), Vector2(view.x, view.y * 0.52)), Color("#c4b99b"))
+    for i in range(5):
+        var cloud_x := fposmod(float(i * 317) - camera_offset.x * 0.12, view.x + 260.0) - 130.0
+        var cloud_y := 76.0 + float((i * 47) % 115)
+        draw_rect(Rect2(Vector2(cloud_x, cloud_y), Vector2(76, 13)), Color("#d8d5c5", 0.52))
+        draw_rect(Rect2(Vector2(cloud_x + 18, cloud_y - 8), Vector2(42, 18)), Color("#e4dfce", 0.58))
+    for i in range(9):
+        var hill_x := float(i) * 190.0 - fposmod(camera_offset.x * 0.22, 190.0)
+        var hill_color := Color("#788d78") if i % 2 == 0 else Color("#84927b")
+        draw_colored_polygon(PackedVector2Array([Vector2(hill_x - 100, 390), Vector2(hill_x + 45, 215 + float(i % 3) * 18), Vector2(hill_x + 210, 390)]), hill_color)
     var left: int = maxi(0, int(camera_offset.x / TILE) - 2)
     var right: int = mini(WORLD_WIDTH, int((camera_offset.x + view.x) / TILE) + 3)
     var top: int = maxi(0, int(camera_offset.y / TILE) - 2)
@@ -381,103 +393,136 @@ func _draw() -> void:
     for x in range(left, right + 1):
         for y in range(top, bottom + 1):
             var cell := Vector2i(x, y)
-            if not blocks.has(cell): continue
-            var kind: String = blocks[cell]
-            var color := Color("#4f9b45")
-            if kind == "dirt": color = Color("#8b6546")
-            elif kind == "stone": color = Color("#737b83")
-            elif kind == "wood": color = Color("#76502e")
-            elif kind == "leaves": color = Color("#347747")
-            elif kind == "copper": color = Color("#b86d43")
-            elif kind == "ash": color = Color("#655d68")
-            elif kind == "mushroom": color = Color("#d6c3a0")
-            elif kind == "mushroom_cap": color = Color("#9a5ca7")
-            elif kind == "mushroom_soil": color = Color("#667b62")
-            elif kind == "crystal": color = Color("#65d5e8")
-            elif kind == "crystal_stone": color = Color("#526c82")
-            elif kind == "ice": color = Color("#b8dce8")
-            elif kind == "snow": color = Color("#e1edf0")
-            elif kind == "sand": color = Color("#d4bb78")
-            elif kind == "relic": color = Color("#d7a94e")
-            elif kind == "ancient_brick": color = Color("#8c8068")
-            elif kind == "rune": color = Color("#7de0d0")
-            elif kind == "herb": color = Color("#83b96c")
-            if cell.x >= 140 and cell.x < 280 and kind == "grass": color = Color("#739b70")
-            if cell.x >= 280 and kind == "grass": color = Color("#a27b62")
+            if not blocks.has(cell):
+                continue
+            var kind: String = str(blocks[cell])
+            var color := Color("#708b55")
+            if kind == "dirt": color = Color("#886448")
+            elif kind == "stone": color = Color("#77776b")
+            elif kind == "wood": color = Color("#765237")
+            elif kind == "leaves": color = Color("#526f43")
+            elif kind == "copper": color = Color("#a96f4c")
+            elif kind == "ash": color = Color("#665d59")
+            elif kind == "mushroom": color = Color("#d4c4a4")
+            elif kind == "mushroom_cap": color = Color("#956b82")
+            elif kind == "mushroom_soil": color = Color("#68745b")
+            elif kind == "crystal": color = Color("#76b7b0")
+            elif kind == "crystal_stone": color = Color("#586f75")
+            elif kind == "ice": color = Color("#b7c9c4")
+            elif kind == "snow": color = Color("#e1e1d2")
+            elif kind == "sand": color = Color("#c9b27b")
+            elif kind == "relic": color = Color("#c49a50")
+            elif kind == "ancient_brick": color = Color("#897b65")
+            elif kind == "rune": color = Color("#7fb4a3")
+            elif kind == "herb": color = Color("#8eaa69")
+            if cell.x >= 140 and cell.x < 280 and kind == "grass": color = Color("#7d956d")
+            if cell.x >= 280 and kind == "grass": color = Color("#9a8068")
             var rect := Rect2(Vector2(cell * TILE) - camera_offset, Vector2(TILE, TILE))
             draw_rect(rect, color)
-            draw_rect(rect, color.darkened(0.2), false, 1.0)
+            draw_rect(Rect2(rect.position, Vector2(TILE, 4)), color.lightened(0.16))
+            draw_rect(Rect2(rect.position + Vector2(0, TILE - 4), Vector2(TILE, 4)), color.darkened(0.22))
+            draw_rect(rect, Color("#352f2a", 0.35), false, 1.0)
+            var detail_seed := absi(cell.x * 92821 + cell.y * 68917)
+            if kind in ["grass", "dirt", "stone", "sand", "ancient_brick"]:
+                var mark := Vector2(rect.position.x + 5 + detail_seed % 17, rect.position.y + 7 + (detail_seed / 7) % 15)
+                draw_rect(Rect2(mark, Vector2(4, 3)), color.lightened(0.2))
+                if kind == "ancient_brick":
+                    draw_line(rect.position + Vector2(0, 16), rect.position + Vector2(TILE, 16), Color("#4c443b", 0.42), 1.0)
+                    draw_line(rect.position + Vector2(16, 0), rect.position + Vector2(16, 16), Color("#4c443b", 0.32), 1.0)
+    # Distant foliage silhouettes add depth without changing world collision.
+    for i in range(12):
+        var tree_x := fposmod(float(i * 173) - camera_offset.x * 0.48, view.x + 100.0) - 50.0
+        draw_rect(Rect2(Vector2(tree_x + 18, 330), Vector2(9, 78)), Color("#554c3d"))
+        draw_circle(Vector2(tree_x + 22, 319), 27, Color("#52694d"))
+        draw_circle(Vector2(tree_x + 5, 331), 18, Color("#617653"))
     for remote_id in remote_players:
         var remote_pos: Vector2 = remote_players[remote_id] - camera_offset
-        draw_rect(Rect2(remote_pos - Vector2(10, 24), Vector2(20, 36)), Color("#75a9df"))
-        draw_string(ThemeDB.fallback_font, remote_pos + Vector2(-28, -30), "Guest", HORIZONTAL_ALIGNMENT_LEFT, 60, 10, Color.WHITE)
+        draw_rect(Rect2(remote_pos - Vector2(10, 24), Vector2(20, 36)), Color("#7895a1"))
+        draw_rect(Rect2(remote_pos - Vector2(8, 28), Vector2(16, 12)), Color("#d1b18a"))
+        draw_string(ThemeDB.fallback_font, remote_pos + Vector2(-28, -34), "Guest", HORIZONTAL_ALIGNMENT_LEFT, 60, 10, Color("#f4e8d0"))
     for enemy in enemies:
         var ep: Vector2 = enemy["pos"] - camera_offset
-        var enemy_color := Color("#65c95c")
-        if enemy["kind"] == "Fungus": enemy_color = Color("#b28ad1")
-        elif enemy["kind"] == "Ash Slime": enemy_color = Color("#b76d55")
-        elif enemy["kind"] == "Crystal Mote": enemy_color = Color("#69d7e8")
-        elif enemy["kind"] == "Frost Wisp": enemy_color = Color("#c5efff")
-        elif enemy["kind"] == "Sand Beetle": enemy_color = Color("#c99c55")
-        draw_rect(Rect2(ep - Vector2(13, 12), Vector2(26, 24)), enemy_color)
-        draw_rect(Rect2(ep - Vector2(7, 3), Vector2(4, 4)), Color("#17251b"))
-        draw_rect(Rect2(ep + Vector2(3, -3), Vector2(4, 4)), Color("#17251b"))
+        var enemy_color := Color("#72965c")
+        if enemy["kind"] == "Fungus": enemy_color = Color("#a786a2")
+        elif enemy["kind"] == "Ash Slime": enemy_color = Color("#a87561")
+        elif enemy["kind"] == "Crystal Mote": enemy_color = Color("#78b8b5")
+        elif enemy["kind"] == "Frost Wisp": enemy_color = Color("#c4d7d0")
+        elif enemy["kind"] == "Sand Beetle": enemy_color = Color("#b99b63")
+        draw_circle(ep + Vector2(0, 2), 14, Color("#3e3a32", 0.35))
+        draw_circle(ep, 13, enemy_color)
+        draw_rect(Rect2(ep + Vector2(-7, -3), Vector2(4, 4)), Color("#302c29"))
+        draw_rect(Rect2(ep + Vector2(3, -3), Vector2(4, 4)), Color("#302c29"))
+        draw_arc(ep, 13, PI, TAU, 16, enemy_color.lightened(0.3), 2.0)
     var p := player_pos - camera_offset
     var visual_cosmetic := account_equipped_cosmetic if account_equipped_cosmetic != "None" else equipped_cosmetic
-    draw_rect(Rect2(p - Vector2(10, 24), Vector2(20, 36)), Color("#e8c18a"))
+    draw_rect(Rect2(p + Vector2(-12, 15), Vector2(24, 5)), Color("#3e392f", 0.35))
+    draw_rect(Rect2(p - Vector2(9, 11), Vector2(18, 26)), Color("#665b4a"))
+    draw_rect(Rect2(p - Vector2(8, 23), Vector2(16, 14)), Color("#d6b58d"))
+    draw_rect(Rect2(p - Vector2(10, 7), Vector2(20, 5)), Color("#8c6045"))
+    draw_rect(Rect2(p - Vector2(8, -9), Vector2(16, 5)), Color("#4c493c"))
+    draw_rect(Rect2(p - Vector2(7, 25), Vector2(14, 5)), Color("#8b6b45"))
     if visual_cosmetic.find("Cape") >= 0:
-        draw_rect(Rect2(p + Vector2(-14, -12), Vector2(7, 30)), Color("#397a55"))
+        draw_rect(Rect2(p + Vector2(-13, -8), Vector2(6, 25)), Color("#5b7049"))
     elif visual_cosmetic.find("Crown") >= 0 or visual_cosmetic.find("Hat") >= 0:
-        draw_rect(Rect2(p + Vector2(-8, -29), Vector2(16, 6)), Color("#d9b34f"))
+        draw_rect(Rect2(p + Vector2(-8, -30), Vector2(16, 6)), Color("#c5a45d"))
     elif visual_cosmetic == "Slime Buddy":
-        draw_rect(Rect2(p + Vector2(18, 2), Vector2(13, 12)), Color("#65c95c"))
-    draw_rect(Rect2(p - Vector2(11, -5), Vector2(22, 9)), Color("#463b32"))
-    draw_rect(Rect2(Vector2(18, 18), Vector2(510, 140)), Color(0.04, 0.06, 0.08, 0.82))
-    draw_string(ThemeDB.fallback_font, Vector2(32, 44), "FORGOTTEN WORLD  |  " + biome, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("#f2e7ca"))
-    draw_string(ThemeDB.fallback_font, Vector2(32, 70), "HP %d   Coins %d   Weapon: %s" % [player_health, coins, equipment["weapon"]], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.WHITE)
-    draw_string(ThemeDB.fallback_font, Vector2(32, 96), "Dirt %d  Stone %d  Wood %d  Copper %d  Gel %d" % [inventory.dirt, inventory.stone, inventory.wood, inventory.copper, inventory.gel], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("#d5dfdc"))
-    draw_string(ThemeDB.fallback_font, Vector2(32, 122), status_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#c8d6df"))
-    draw_string(ThemeDB.fallback_font, Vector2(32, 145), "Cosmetic: " + visual_cosmetic + " | C craft | I inventory | M cosmetics | Q journal", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#f0d59b"))
+        draw_circle(p + Vector2(23, 7), 8, Color("#7fa36a"))
+    # Framed parchment HUD.
+    _draw_old_panel(Rect2(Vector2(18, 18), Vector2(535, 145)))
+    draw_string(ThemeDB.fallback_font, Vector2(38, 47), "FORGOTTEN WORLD", HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color("#463b2d"))
+    draw_string(ThemeDB.fallback_font, Vector2(38, 70), "A field journal  /  " + biome, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#74634b"))
+    draw_string(ThemeDB.fallback_font, Vector2(38, 96), "HEALTH  %d     COINS  %d" % [player_health, coins], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("#4d4435"))
+    draw_string(ThemeDB.fallback_font, Vector2(38, 119), "Dirt %d   Stone %d   Wood %d   Copper %d   Gel %d" % [inventory.dirt, inventory.stone, inventory.wood, inventory.copper, inventory.gel], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#675a46"))
+    draw_string(ThemeDB.fallback_font, Vector2(38, 145), status_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#79684f"))
+    draw_string(ThemeDB.fallback_font, Vector2(18, view.y - 83), "FIELD PACK", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#f1e4c7"))
     for i in range(hotbar.size()):
-        var x := 32 + i * 48
-        draw_rect(Rect2(Vector2(x, view.y - 66), Vector2(42, 42)), Color("#3a4146") if i != selected_slot else Color("#d2ae61"))
-        draw_string(ThemeDB.fallback_font, Vector2(x + 8, view.y - 39), str(inventory.get(hotbar[i], 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+        var x := 24 + i * 54
+        _draw_old_panel(Rect2(Vector2(x, view.y - 68), Vector2(48, 48)), i == selected_slot)
+        draw_string(ThemeDB.fallback_font, Vector2(x + 8, view.y - 38), str(inventory.get(hotbar[i], 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#453b2d"))
+        draw_string(ThemeDB.fallback_font, Vector2(x + 8, view.y - 54), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color("#8c7755"))
     if show_crafting:
-        draw_rect(Rect2(Vector2(550, 100), Vector2(390, 340)), Color("#171d20"))
-        draw_string(ThemeDB.fallback_font, Vector2(570, 130), "CRAFTING (press C to close)", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("#f2e7ca"))
+        _draw_old_panel(Rect2(Vector2(550, 100), Vector2(390, 340)))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 130), "THE WORKBENCH  /  C TO CLOSE", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color("#493c2c"))
         for i in range(craft_names.size()):
-            draw_string(ThemeDB.fallback_font, Vector2(570, 160 + i * 27), "%d. %s" % [i + 1, craft_names[i]], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
-        draw_string(ThemeDB.fallback_font, Vector2(570, 420), "Press 1-9 to craft while this panel is open", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#c8d6df"))
+            draw_string(ThemeDB.fallback_font, Vector2(570, 160 + i * 27), "%d.  %s" % [i + 1, craft_names[i]], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#5b4c38"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 420), "Choose a recipe with keys 1-9", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#827052"))
     if show_cosmetics:
-        draw_rect(Rect2(Vector2(550, 100), Vector2(390, 270)), Color("#171d20"))
-        draw_string(ThemeDB.fallback_font, Vector2(570, 130), "COSMETIC STALL (M to close)", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("#f2e7ca"))
-        draw_string(ThemeDB.fallback_font, Vector2(570, 164), "1 Leaf Crown: craft (12 leaves, 2 wood)", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
-        draw_string(ThemeDB.fallback_font, Vector2(570, 190), "2 Wooden Mask: craft (8 wood)", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
-        draw_string(ThemeDB.fallback_font, Vector2(570, 216), "3 Slime Hat: craft (6 gel)", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
-        draw_string(ThemeDB.fallback_font, Vector2(570, 250), "4 Forest Cape: buy (35 coins)", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#d6c18d"))
-        draw_string(ThemeDB.fallback_font, Vector2(570, 276), "5 Royal Crown: buy (90 coins)", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#d6c18d"))
-        draw_string(ThemeDB.fallback_font, Vector2(570, 302), "6 Slime Buddy: buy (70 coins)", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#d6c18d"))
+        _draw_old_panel(Rect2(Vector2(550, 100), Vector2(390, 270)))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 130), "THE TAILOR'S STALL  /  M TO CLOSE", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("#493c2c"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 164), "1  Leaf Crown  -  12 leaves, 2 wood", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#5b4c38"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 190), "2  Wooden Mask  -  8 wood", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#5b4c38"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 216), "3  Slime Hat  -  6 gel", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#5b4c38"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 250), "4  Forest Cape  -  35 coins", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#75603d"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 276), "5  Royal Crown  -  90 coins", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#75603d"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 302), "6  Slime Buddy  -  70 coins", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#75603d"))
     if show_quests:
-        draw_rect(Rect2(Vector2(550, 100), Vector2(430, 230)), Color("#171d20"))
-        draw_string(ThemeDB.fallback_font, Vector2(570, 130), "ADVENTURER JOURNAL (Q to close)", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("#f2e7ca"))
+        _draw_old_panel(Rect2(Vector2(550, 100), Vector2(430, 230)))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 130), "ADVENTURER'S JOURNAL  /  Q TO CLOSE", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("#493c2c"))
         var quest_y := 164
         for quest_id in quest_definitions:
             var quest: Dictionary = quest_definitions[quest_id]
             var goal: String = str(quest["goal"])
             var current := int(quest_progress.get(goal, 0))
             var target := int(quest["target"])
-            var line := "%s  %d/%d  |  %d coins" % [quest["label"], mini(current, target), target, quest["reward"]]
+            var line := "%s  %d/%d  -  %d coins" % [quest["label"], mini(current, target), target, quest["reward"]]
             if quest_claimed.get(quest_id, false): line += "  COMPLETE"
-            draw_string(ThemeDB.fallback_font, Vector2(570, quest_y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#d6c18d") if quest_claimed.get(quest_id, false) else Color.WHITE)
+            draw_string(ThemeDB.fallback_font, Vector2(570, quest_y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#887044") if quest_claimed.get(quest_id, false) else Color("#5b4c38"))
             quest_y += 30
     if show_inventory:
-        draw_rect(Rect2(Vector2(550, 360), Vector2(360, 150)), Color("#171d20"))
-        draw_string(ThemeDB.fallback_font, Vector2(570, 390), "EQUIPMENT", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("#f2e7ca"))
-        draw_string(ThemeDB.fallback_font, Vector2(570, 420), "Weapon: " + equipment["weapon"], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
-        draw_string(ThemeDB.fallback_font, Vector2(570, 446), "Head: " + equipment["head"] + " | Chest: " + equipment["chest"], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
-        draw_string(ThemeDB.fallback_font, Vector2(570, 472), "Legs: " + equipment["legs"] + " | Accessory: " + equipment["accessory"], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
+        _draw_old_panel(Rect2(Vector2(550, 360), Vector2(390, 150)))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 390), "TRAVELLER'S EQUIPMENT", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("#493c2c"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 420), "Weapon: " + equipment["weapon"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#5b4c38"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 446), "Head: " + equipment["head"] + "  /  Chest: " + equipment["chest"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#5b4c38"))
+        draw_string(ThemeDB.fallback_font, Vector2(570, 472), "Legs: " + equipment["legs"] + "  /  Accessory: " + equipment["accessory"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#5b4c38"))
 
-
+func _draw_old_panel(rect: Rect2, highlighted: bool = false) -> void:
+    draw_rect(Rect2(rect.position + Vector2(4, 5), rect.size), Color("#302b24", 0.34))
+    draw_rect(rect, Color("#d7c7a3"))
+    draw_rect(Rect2(rect.position + Vector2(4, 4), rect.size - Vector2(8, 8)), Color("#e8dcc0"))
+    draw_rect(rect, Color("#8d7652"), false, 2.0)
+    draw_rect(Rect2(rect.position + Vector2(5, 5), rect.size - Vector2(10, 10)), Color("#b19a70"), false, 1.0)
+    if highlighted:
+        draw_rect(Rect2(rect.position + Vector2(3, 3), rect.size - Vector2(6, 6)), Color("#c5a45d"), false, 2.0)
 
 
 func _record_gather(kind: String) -> void:
