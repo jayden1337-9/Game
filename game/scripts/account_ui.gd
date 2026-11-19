@@ -32,6 +32,7 @@ func _ready() -> void:
     _build_ui()
     api.api_response.connect(_on_api_response)
     _build_dev_panel()
+    _apply_old_world_theme()
     sync_timer = Timer.new()
     sync_timer.wait_time = 0.3
     sync_timer.timeout.connect(_sync_world)
@@ -138,6 +139,65 @@ func _build_ui() -> void:
     join_button.text = "Join world with invite"
     join_button.pressed.connect(func(): api.join_world(invite_input.text.strip_edges()))
     outer.add_child(join_button)
+
+
+func _apply_old_world_theme() -> void:
+    var old_theme := Theme.new()
+    old_theme.set_color("font_color", "Label", Color("#493d2e"))
+    old_theme.set_color("font_color", "Button", Color("#f0e4c8"))
+    old_theme.set_color("font_hover_color", "Button", Color("#fff3d6"))
+    old_theme.set_color("font_pressed_color", "Button", Color("#e0c78f"))
+    old_theme.set_color("font_color", "LineEdit", Color("#493d2e"))
+    old_theme.set_color("font_placeholder_color", "LineEdit", Color("#9a896c"))
+    old_theme.set_font_size("font_size", "Label", 14)
+    old_theme.set_font_size("font_size", "Button", 13)
+    old_theme.set_font_size("font_size", "LineEdit", 13)
+    var parchment := StyleBoxFlat.new()
+    parchment.bg_color = Color("#d9c9a6")
+    parchment.border_color = Color("#766143")
+    parchment.set_border_width_all(3)
+    parchment.set_corner_radius_all(4)
+    parchment.content_margin_left = 14
+    parchment.content_margin_right = 14
+    parchment.content_margin_top = 12
+    parchment.content_margin_bottom = 12
+    old_theme.set_stylebox("panel", "PanelContainer", parchment)
+    var button_normal := StyleBoxFlat.new()
+    button_normal.bg_color = Color("#6c6046")
+    button_normal.border_color = Color("#b69a64")
+    button_normal.set_border_width_all(2)
+    button_normal.set_corner_radius_all(3)
+    button_normal.content_margin_left = 12
+    button_normal.content_margin_right = 12
+    button_normal.content_margin_top = 7
+    button_normal.content_margin_bottom = 7
+    var button_hover := button_normal.duplicate() as StyleBoxFlat
+    button_hover.bg_color = Color("#81704e")
+    var button_pressed := button_normal.duplicate() as StyleBoxFlat
+    button_pressed.bg_color = Color("#514936")
+    old_theme.set_stylebox("normal", "Button", button_normal)
+    old_theme.set_stylebox("hover", "Button", button_hover)
+    old_theme.set_stylebox("pressed", "Button", button_pressed)
+    old_theme.set_stylebox("focus", "Button", button_hover)
+    var field := StyleBoxFlat.new()
+    field.bg_color = Color("#eee3c9")
+    field.border_color = Color("#95805b")
+    field.set_border_width_all(2)
+    field.set_corner_radius_all(2)
+    field.content_margin_left = 9
+    field.content_margin_right = 9
+    field.content_margin_top = 7
+    field.content_margin_bottom = 7
+    old_theme.set_stylebox("normal", "LineEdit", field)
+    old_theme.set_stylebox("focus", "LineEdit", field)
+    old_theme.set_stylebox("read_only", "LineEdit", field)
+    old_theme.set_stylebox("normal", "OptionButton", button_normal)
+    old_theme.set_stylebox("hover", "OptionButton", button_hover)
+    old_theme.set_stylebox("pressed", "OptionButton", button_pressed)
+    old_theme.set_stylebox("normal", "SpinBox", field)
+    old_theme.set_stylebox("focus", "SpinBox", field)
+    panel.theme = old_theme
+    dev_panel.theme = old_theme
 
 func _set_server() -> bool:
     var url := server_input.text.strip_edges().trim_suffix("/")
