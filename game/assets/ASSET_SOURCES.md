@@ -12,6 +12,7 @@ These are source pages/catalogues, not assets copied into this repository. Downl
 | Terrain, trees and world tiles | https://assethoard.com/free-game-assets/tilesets | Filter for CC0 2D tilesets; look for the Kenney map / roguelike packs and 0x72 fantasy tiles. |
 | Medieval buildings and props | https://assethoard.com/free-game-assets/cc0 | Browse CC0 environment and prop packs; prefer matching top-down or side-view assets. |
 | Menus, inventory frames and buttons | https://assethoard.com/free-game-assets/cc0 | The catalogue lists Foozle's RPG UI Set 1 as hand-drawn UI and CC0. |
+| Typography | https://github.com/google/fonts/tree/main/ofl/imfellenglish | IM Fell English is an old-style serif from Google Fonts under the SIL Open Font License; use it for headings and pair it with a plain readable body font. |
 | Creatures and ambient effects | https://github.com/Tiddybub/2d-assets | Browse fantasy, characters and effects; preserve each pack's attribution/licence file even where attribution is not required. |
 | Additional medieval pixel-art sets | https://itch.io/game-assets/free/tag-cc0/tag-pixel-art/tag-tileset | Filter by CC0, pixel art and tileset; inspect each pack's own licence before importing. |
 
