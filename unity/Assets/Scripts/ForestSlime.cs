@@ -32,13 +32,14 @@ namespace ForgottenWorld
             else transform.localScale = Vector3.one;
         }
 
-        public void Befriend()
+        public bool Befriend()
         {
-            if (friendly) return;
+            if (friendly) return false;
             friendly = true;
             gameObject.name = "Friendly Forest Slime";
             var renderer = GetComponent<SpriteRenderer>();
             if (renderer != null) renderer.color = new Color(1f, 0.88f, 0.55f);
+            return true;
         }
     }
 }
