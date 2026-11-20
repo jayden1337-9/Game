@@ -2,7 +2,9 @@
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace ForgottenWorld.Editor
 {
@@ -10,12 +12,17 @@ namespace ForgottenWorld.Editor
     {
         public static void Build()
         {
-            const string scene = "Assets/Scenes/Main.unity";
-            if (!File.Exists(scene)) throw new FileNotFoundException("Main scene is missing", scene);
+            const string scenePath = "Assets/Scenes/Main.unity";
+            Directory.CreateDirectory("Assets/Scenes");
+            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            scene.name = "ForgottenWorld";
+            EditorSceneManager.SaveScene(scene, scenePath);
+            AssetDatabase.Refresh();
+
             Directory.CreateDirectory("Build/Windows");
             var options = new BuildPlayerOptions
             {
-                scenes = new[] { scene },
+                scenes = new[] { scenePath },
                 locationPathName = "Build/Windows/ForgottenWorld.exe",
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.None
