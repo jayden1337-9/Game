@@ -50,6 +50,7 @@ namespace ForgottenWorld
             BuildCamera();
             BuildWorld();
             BuildPlayer();
+            gameObject.AddComponent<AccountClient>();
             BuildStyles();
         }
 
