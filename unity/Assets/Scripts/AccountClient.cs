@@ -96,7 +96,9 @@ namespace ForgottenWorld
                         PlayerPrefs.SetString("fw_username", username.Trim());
                         PlayerPrefs.Save();
                         status = "Signed in as " + username.Trim();
+                        busy = false;
                         yield return LoadProfile();
+                        yield break;
                     }
                     else status = response != null ? response.error : "Invalid server response.";
                 }
