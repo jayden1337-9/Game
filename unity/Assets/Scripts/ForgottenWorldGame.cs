@@ -19,7 +19,7 @@ namespace ForgottenWorld
 
         private static readonly Color Ink = new Color(0.16f, 0.13f, 0.10f);
         private static readonly Color Parchment = new Color(0.88f, 0.79f, 0.61f);
-        private static readonly Color Gold = new Color(0.72f, 0.48f, 0.19f);
+        private static readonly Dictionary<string, Sprite> SpriteCache = new Dictionary<string, Sprite>();
         private readonly string[] weapons = { "Rusty Sword", "Oak Longsword", "Copper Saber", "Moonsteel Blade" };
         private readonly string[] skins = { "Wayfarer", "Forest Warden", "Royal Guard", "Frostbound" };
         private SaveData save = new SaveData();
@@ -28,22 +28,18 @@ namespace ForgottenWorld
         private Transform weaponTransform;
         private SpriteRenderer weaponRenderer;
         private Camera gameCamera;
-        private Sprite tileSprite;
-        private Sprite playerSprite;
-        private Sprite swordSprite;
         private Vector2 spawnPoint = new Vector2(0, 3.2f);
         private float attackTime;
         private float autosave;
         private bool inventoryOpen;
         private string notice = "Welcome, wayfarer. Explore, gather and craft.";
-        private GUIStyle titleStyle, bodyStyle, buttonStyle, panelStyle;
+        private GUIStyle titleStyle, bodyStyle, buttonStyle;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
             if (FindObjectOfType<ForgottenWorldGame>() != null) return;
-            var root = new GameObject("Forgotten World");
-            root.AddComponent<ForgottenWorldGame>();
+            new GameObject("Forgotten World").AddComponent<ForgottenWorldGame>();
         }
 
         private void Awake()
@@ -59,11 +55,13 @@ namespace ForgottenWorld
         private void Update()
         {
             if (body == null) return;
-            float move = Input.GetAxisRaw("Horizontal");
+            float move = 0f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) move -= 1f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) move += 1f;
             body.velocity = new Vector2(move * 5.2f, body.velocity.y);
+
             if ((Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) && Mathf.Abs(body.velocity.y) < 0.05f)
                 body.velocity = new Vector2(body.velocity.x, 10.5f);
-
             if (Input.GetKeyDown(KeyCode.I)) inventoryOpen = !inventoryOpen;
             if (Input.GetKeyDown(KeyCode.E)) GatherNearby();
             if (Input.GetKeyDown(KeyCode.Alpha1)) EquipWeapon(0);
@@ -102,47 +100,42 @@ namespace ForgottenWorld
                 {
                     Color c = y == surface ? new Color(0.32f, 0.42f, 0.25f) :
                         y > surface - 3 ? new Color(0.43f, 0.29f, 0.19f) : new Color(0.30f, 0.30f, 0.31f);
-                    var tile = new GameObject("Tile");
-                    tile.transform.SetParent(world.transform);
-                    tile.transform.position = new Vector3(x, y, 0);
-                    var sr = tile.AddComponent<SpriteRenderer>();
-                    sr.sprite = PixelSprite(c);
-                    sr.sortingOrder = 0;
-                    tile.AddComponent<BoxCollider2D>();
+                    MakeBlock(world.transform, x, y, c, 0);
                 }
                 if (x % 13 == 0) MakeTree(world.transform, x, surface + 1);
                 if (x % 19 == 7) MakeCrystal(world.transform, x, surface + 1);
             }
-            var sky = new GameObject("Distant hills");
-            sky.transform.position = new Vector3(0, 1.4f, 5);
-            var hill = sky.AddComponent<SpriteRenderer>();
-            hill.sprite = PixelSprite(new Color(0.24f, 0.34f, 0.31f), 64, 24);
+            var hill = new GameObject("Distant hills");
+            hill.transform.position = new Vector3(0, 1.4f, 5);
+            var hillRenderer = hill.AddComponent<SpriteRenderer>();
+            hillRenderer.sprite = PixelSprite(new Color(0.24f, 0.34f, 0.31f), 64, 24);
             hill.transform.localScale = new Vector3(35, 4, 1);
         }
 
         private void MakeTree(Transform parent, int x, int y)
         {
-            for (int h = 0; h < 4; h++) MakeBlock(parent, x, y + h, new Color(0.30f, 0.19f, 0.12f));
+            for (int h = 0; h < 4; h++) MakeBlock(parent, x, y + h, new Color(0.30f, 0.19f, 0.12f), 1, false);
             for (int dx = -2; dx <= 2; dx++)
                 for (int dy = 3; dy <= 6; dy++)
                     if (Mathf.Abs(dx) + Mathf.Abs(dy - 4) < 4)
-                        MakeBlock(parent, x + dx, y + dy, new Color(0.23f, 0.36f, 0.22f));
+                        MakeBlock(parent, x + dx, y + dy, new Color(0.23f, 0.36f, 0.22f), 1, false);
         }
 
         private void MakeCrystal(Transform parent, int x, int y)
         {
-            MakeBlock(parent, x, y, new Color(0.34f, 0.66f, 0.69f));
-            MakeBlock(parent, x, y + 1, new Color(0.45f, 0.78f, 0.78f));
+            MakeBlock(parent, x, y, new Color(0.34f, 0.66f, 0.69f), 2, false);
+            MakeBlock(parent, x, y + 1, new Color(0.45f, 0.78f, 0.78f), 2, false);
         }
 
-        private void MakeBlock(Transform parent, int x, int y, Color color)
+        private void MakeBlock(Transform parent, int x, int y, Color color, int sortingOrder, bool solid = true)
         {
-            var go = new GameObject("World prop");
+            var go = new GameObject(solid ? "Ground tile" : "World prop");
             go.transform.SetParent(parent);
             go.transform.position = new Vector3(x, y, 0);
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = PixelSprite(color);
-            sr.sortingOrder = 1;
+            sr.sortingOrder = sortingOrder;
+            if (solid) go.AddComponent<BoxCollider2D>();
         }
 
         private void BuildPlayer()
@@ -169,19 +162,25 @@ namespace ForgottenWorld
 
         private Sprite PixelSprite(Color color, int width = 16, int height = 16)
         {
+            string key = ColorUtility.ToHtmlStringRGBA(color) + "_" + width + "x" + height;
+            if (SpriteCache.TryGetValue(key, out Sprite cached)) return cached;
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;
             var pixels = new Color[width * height];
-            for (int i = 0; i < pixels.Length; i++) pixels[i] = color;
-            // Subtle pixel-art highlight and shadow edges.
             for (int y = 0; y < height; y++)
                 for (int x = 0; x < width; x++)
-                    if (x == 0 || y == 0) pixels[y * width + x] = color * 0.72f;
-                    else if (x == width - 1 || y == height - 1) pixels[y * width + x] = color * 1.18f;
+                {
+                    Color pixel = color;
+                    if (x == 0 || y == 0) pixel = color * 0.72f;
+                    else if (x == width - 1 || y == height - 1) pixel = color * 1.12f;
+                    pixels[y * width + x] = pixel;
+                }
             texture.SetPixels(pixels);
             texture.Apply();
-            return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 16);
+            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 16);
+            SpriteCache[key] = sprite;
+            return sprite;
         }
 
         private Color SkinColor(string skin)
@@ -210,6 +209,7 @@ namespace ForgottenWorld
         {
             attackTime = 0.28f;
             weaponTransform.localRotation = Quaternion.Euler(0, 0, -95);
+            CancelInvoke(nameof(ResetWeapon));
             Invoke(nameof(ResetWeapon), 0.28f);
             notice = save.weapon + " swing!";
         }
@@ -223,7 +223,7 @@ namespace ForgottenWorld
         {
             save.wood += 1;
             if (UnityEngine.Random.value < 0.35f) save.stone += 1;
-            notice = "Gathered materials nearby. Wood: " + save.wood + "  Stone: " + save.stone;
+            notice = "Gathered nearby materials. Wood: " + save.wood + "  Stone: " + save.stone;
             SaveGame();
         }
 
@@ -250,7 +250,7 @@ namespace ForgottenWorld
             string path = Path.Combine(Application.persistentDataPath, "player-save.json");
             if (!File.Exists(path)) return;
             try { save = JsonUtility.FromJson<SaveData>(File.ReadAllText(path)) ?? new SaveData(); }
-            catch { save = new SaveData(); }
+            catch (Exception ex) { Debug.LogWarning("Save load failed; starting fresh: " + ex.Message); save = new SaveData(); }
         }
 
         private void SaveGame()
@@ -264,7 +264,6 @@ namespace ForgottenWorld
             titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 23, fontStyle = FontStyle.Bold, normal = { textColor = Parchment } };
             bodyStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Ink }, wordWrap = true };
             buttonStyle = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
-            panelStyle = new GUIStyle(GUI.skin.box) { normal = { background = Texture2D.whiteTexture } };
         }
 
         private void OnGUI()
@@ -278,7 +277,6 @@ namespace ForgottenWorld
             GUI.Label(new Rect(28, 19, 400, 32), "FORGOTTEN WORLD", titleStyle);
             GUI.Label(new Rect(30, 54, 390, 26), "THE ELDERWOOD  •  " + save.weapon + "  •  " + save.coins + " coins", new GUIStyle(bodyStyle) { normal = { textColor = Parchment } });
             GUI.Label(new Rect(30, 78, 390, 22), "A / D move     SPACE jump     J attack     E gather     I inventory", new GUIStyle(bodyStyle) { normal = { textColor = Parchment }, fontSize = 11 });
-            GUI.color = Color.white;
             GUI.Label(new Rect(20, Screen.height / scale - 38, 700, 28), notice, new GUIStyle(bodyStyle) { normal = { textColor = Parchment } });
 
             if (inventoryOpen)
