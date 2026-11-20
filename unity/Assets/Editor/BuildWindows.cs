@@ -14,6 +14,7 @@ namespace ForgottenWorld.Editor
         {
             const string scenePath = "Assets/Scenes/Main.unity";
             Directory.CreateDirectory("Assets/Scenes");
+            PlayerSettings.activeInputHandler = ActiveInputHandler.InputManager;
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             scene.name = "ForgottenWorld";
             EditorSceneManager.SaveScene(scene, scenePath);
