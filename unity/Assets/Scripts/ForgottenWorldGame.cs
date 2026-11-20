@@ -18,6 +18,7 @@ namespace ForgottenWorld
         private readonly string[] skins = { "Wayfarer", "Forest Warden", "Royal Guard", "Frostbound" };
         private SaveData save = new SaveData();
         private Rigidbody2D body;
+        private Transform playerTransform;
         private SpriteRenderer playerRenderer;
         private Camera gameCamera;
         private float autosave;
@@ -39,6 +40,7 @@ namespace ForgottenWorld
             BuildCamera();
             BuildWorld();
             BuildPlayer();
+            foreach (ForestSlime slime in FindObjectsOfType<ForestSlime>()) slime.Initialize(playerTransform);
             gameObject.AddComponent<AccountClient>();
             BuildStyles();
         }
@@ -60,7 +62,7 @@ namespace ForgottenWorld
             if (autosave >= 20f) { autosave = 0f; SaveGame(); }
             if (gameCamera != null)
             {
-                Vector3 target = new Vector3(transform.position.x, Mathf.Max(2f, transform.position.y + 1.4f), -10f);
+                Vector3 target = new Vector3(playerTransform.position.x, Mathf.Max(2f, playerTransform.position.y + 1.4f), -10f);
                 gameCamera.transform.position = Vector3.Lerp(gameCamera.transform.position, target, Time.deltaTime * 4f);
             }
         }
@@ -146,6 +148,7 @@ namespace ForgottenWorld
         {
             var go = new GameObject("Player - " + save.skin);
             go.transform.position = new Vector2(0, 3.2f);
+            playerTransform = go.transform;
             playerRenderer = go.AddComponent<SpriteRenderer>();
             playerRenderer.sprite = SkinSprite(save.skin);
             playerRenderer.sortingOrder = 5;
@@ -217,7 +220,7 @@ namespace ForgottenWorld
             float best = 2.5f;
             foreach (ResourceNode node in nodes)
             {
-                float distance = Vector2.Distance(transform.position, node.transform.position);
+                float distance = Vector2.Distance(playerTransform.position, node.transform.position);
                 if (distance < best) { best = distance; closest = node; }
             }
             if (closest == null) { notice = "No resources nearby. Find a tree or crystal cluster."; return; }
@@ -236,11 +239,11 @@ namespace ForgottenWorld
             float best = 2.2f;
             foreach (ForestSlime slime in slimes)
             {
-                float distance = Vector2.Distance(transform.position, slime.transform.position);
+                float distance = Vector2.Distance(playerTransform.position, slime.transform.position);
                 if (distance < best) { best = distance; closest = slime; }
             }
             if (closest == null) { notice = "No friendly slime nearby."; return; }
-            closest.Befriend();
+            if (!closest.Befriend()) { notice = "That slime is already your friend."; return; }
             save.companions++;
             save.gel++;
             notice = "A little slime joined your journey! Companions: " + save.companions;
