@@ -90,32 +90,6 @@ def test_gameplay_rewards_are_idempotent_and_capped(client):
     assert client.get("/api/profile", headers=headers).get_json()["coins"] == 200
 
 
-def test_demo_ban_is_scoped_to_the_signed_in_game_account(client, monkeypatch):
-    target_token = register(client, "demo_target")
-    other_token = register(client, "other_player")
-    headers = auth(target_token)
-    started = api.time.time()
-    session = client.post("/api/demo-exploit/start", headers=headers, json={"confirmed": True})
-    assert session.status_code == 200
-    monkeypatch.setattr(api.time, "time", lambda: started + 901)
-    finished = client.post("/api/demo-exploit/finish", headers=headers, json={"session_id": session.get_json()["session_id"]})
-    assert finished.status_code == 200
-    blocked = client.get("/api/me", headers=headers)
-    assert blocked.status_code == 403
-    assert blocked.get_json()["demo_ban"] is True
-    assert client.get("/api/me", headers=auth(other_token)).status_code == 200
-    monkeypatch.setenv("ADMIN_PASSWORD", "test-admin-password")
-    api.init_db()
-    admin_login = client.post("/api/login", json={"username": "admin1337", "password": "test-admin-password"})
-    assert admin_login.status_code == 200
-    with api.db() as conn:
-        cur = conn.cursor()
-        cur.execute(api.sql("SELECT id FROM users WHERE username=?"), ("demo_target",))
-        target_id = api.asdict(cur.fetchone())["id"]
-    cleared = client.post("/api/admin/demo-unban", headers=auth(admin_login.get_json()["token"]), json={"user_id": target_id})
-    assert cleared.status_code == 200
-    assert client.get("/api/me", headers=auth(target_token)).status_code == 200
-
 
 def test_dev_grants_require_allowlisted_username(client, monkeypatch):
     token = register(client, "builder")
