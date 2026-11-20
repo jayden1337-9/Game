@@ -9,31 +9,20 @@ namespace ForgottenWorld
     {
         [Serializable] private class SaveData
         {
-            public int coins = 0;
-            public int wood = 0;
-            public int stone = 0;
-            public int gel = 0;
-            public int crystal = 0;
-            public string weapon = "Rusty Sword";
+            public int coins, wood, stone, gel, crystal, companions;
             public string skin = "Wayfarer";
         }
 
-        private static readonly Color Ink = new Color(0.16f, 0.13f, 0.10f);
         private static readonly Color Parchment = new Color(0.88f, 0.79f, 0.61f);
         private static readonly Dictionary<string, Sprite> SpriteCache = new Dictionary<string, Sprite>();
-        private readonly string[] weapons = { "Rusty Sword", "Oak Longsword", "Copper Saber", "Moonsteel Blade" };
         private readonly string[] skins = { "Wayfarer", "Forest Warden", "Royal Guard", "Frostbound" };
         private SaveData save = new SaveData();
         private Rigidbody2D body;
         private SpriteRenderer playerRenderer;
-        private Transform weaponTransform;
-        private SpriteRenderer weaponRenderer;
         private Camera gameCamera;
-        private Vector2 spawnPoint = new Vector2(0, 3.2f);
-        private float attackTime;
         private float autosave;
         private bool inventoryOpen;
-        private string notice = "Welcome, wayfarer. Explore, gather and craft.";
+        private string notice = "Welcome, wayfarer. Explore the Elderwood.";
         private GUIStyle titleStyle, bodyStyle, buttonStyle;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -61,18 +50,12 @@ namespace ForgottenWorld
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) move -= 1f;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) move += 1f;
             body.velocity = new Vector2(move * 5.2f, body.velocity.y);
-
             if ((Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) && Mathf.Abs(body.velocity.y) < 0.05f)
                 body.velocity = new Vector2(body.velocity.x, 10.5f);
             if (Input.GetKeyDown(KeyCode.I)) inventoryOpen = !inventoryOpen;
             if (Input.GetKeyDown(KeyCode.E)) GatherNearby();
-            if (Input.GetKeyDown(KeyCode.Alpha1)) EquipWeapon(0);
-            if (Input.GetKeyDown(KeyCode.Alpha2)) EquipWeapon(1);
-            if (Input.GetKeyDown(KeyCode.Alpha3)) EquipWeapon(2);
-            if (Input.GetKeyDown(KeyCode.Alpha4)) EquipWeapon(3);
-            if (Input.GetKeyDown(KeyCode.J) && attackTime <= 0f) Attack();
+            if (Input.GetKeyDown(KeyCode.F)) BefriendNearbySlime();
 
-            attackTime = Mathf.Max(0f, attackTime - Time.deltaTime);
             autosave += Time.deltaTime;
             if (autosave >= 20f) { autosave = 0f; SaveGame(); }
             if (gameCamera != null)
@@ -124,22 +107,22 @@ namespace ForgottenWorld
                         MakeBlock(parent, x + dx, y + dy, new Color(0.23f, 0.36f, 0.22f), 1, false);
         }
 
+        private void MakeCrystal(Transform parent, int x, int y)
+        {
+            MakeBlock(parent, x, y, new Color(0.34f, 0.66f, 0.69f), 2, false, "crystal");
+            MakeBlock(parent, x, y + 1, new Color(0.45f, 0.78f, 0.78f), 2, false);
+        }
+
         private void MakeSlime(Transform parent, int x, int y)
         {
-            var enemy = new GameObject("Forest Slime");
+            var enemy = new GameObject("Elderwood Slime");
             enemy.transform.SetParent(parent);
             enemy.transform.position = new Vector3(x, y + 0.35f, 0);
             var renderer = enemy.AddComponent<SpriteRenderer>();
             renderer.sprite = PixelSprite(new Color(0.40f, 0.63f, 0.34f), 15, 11);
             renderer.sortingOrder = 4;
-            enemy.AddComponent<BoxCollider2D>().isTrigger = true;
-            enemy.AddComponent<SlimeEnemy>().Initialize(transform);
-        }
-
-        private void MakeCrystal(Transform parent, int x, int y)
-        {
-            MakeBlock(parent, x, y, new Color(0.34f, 0.66f, 0.69f), 2, false, "crystal");
-            MakeBlock(parent, x, y + 1, new Color(0.45f, 0.78f, 0.78f), 2, false);
+            enemy.AddComponent<CircleCollider2D>().isTrigger = true;
+            enemy.AddComponent<ForestSlime>().Initialize(transform);
         }
 
         private void MakeBlock(Transform parent, int x, int y, Color color, int sortingOrder, bool solid = true, string resource = null)
@@ -162,7 +145,7 @@ namespace ForgottenWorld
         private void BuildPlayer()
         {
             var go = new GameObject("Player - " + save.skin);
-            go.transform.position = spawnPoint;
+            go.transform.position = new Vector2(0, 3.2f);
             playerRenderer = go.AddComponent<SpriteRenderer>();
             playerRenderer.sprite = SkinSprite(save.skin);
             playerRenderer.sortingOrder = 5;
@@ -171,14 +154,6 @@ namespace ForgottenWorld
             body.gravityScale = 3f;
             var collider = go.AddComponent<CapsuleCollider2D>();
             collider.size = new Vector2(0.65f, 1.2f);
-
-            var weapon = new GameObject("Equipped weapon - " + save.weapon);
-            weapon.transform.SetParent(go.transform);
-            weapon.transform.localPosition = new Vector3(0.48f, -0.05f, 0);
-            weaponTransform = weapon.transform;
-            weaponRenderer = weapon.AddComponent<SpriteRenderer>();
-            weaponRenderer.sprite = WeaponSprite(save.weapon);
-            weaponRenderer.sortingOrder = 7;
         }
 
         private Sprite PixelSprite(Color color, int width = 16, int height = 16)
@@ -187,7 +162,6 @@ namespace ForgottenWorld
             if (SpriteCache.TryGetValue(key, out Sprite cached)) return cached;
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             texture.filterMode = FilterMode.Point;
-            texture.wrapMode = TextureWrapMode.Clamp;
             var pixels = new Color[width * height];
             for (int y = 0; y < height; y++)
                 for (int x = 0; x < width; x++)
@@ -227,27 +201,6 @@ namespace ForgottenWorld
             return CreatePixelSprite(pixels,w,h);
         }
 
-        private Sprite WeaponSprite(string weapon)
-        {
-            const int w=10, h=24;
-            Color[] pixels = new Color[w*h];
-            Color blade = WeaponColor(weapon);
-            Color handle = new Color(0.25f,0.16f,0.10f);
-            Color guard = new Color(0.76f,0.57f,0.25f);
-            Action<int,int,Color> put = (x,y,color) => { if(x>=0 && x<w && y>=0 && y<h) pixels[y*w+x]=color; };
-            for(int y=2;y<=7;y++) put(4,y,handle);
-            for(int x=1;x<=8;x++) put(x,8,guard);
-            for(int y=9;y<=22;y++)
-            {
-                int half = y < 12 ? 2 : (y < 19 ? 1 : 0);
-                int center = weapon == "Copper Saber" && y > 13 ? 5 : 4;
-                for(int x=center-half;x<=center+half;x++) put(x,y,blade);
-                put(center-half,y,blade*0.78f);
-            }
-            put(4,23,blade);
-            return CreatePixelSprite(pixels,w,h);
-        }
-
         private Sprite CreatePixelSprite(Color[] pixels, int width, int height)
         {
             var texture = new Texture2D(width,height,TextureFormat.RGBA32,false);
@@ -255,60 +208,6 @@ namespace ForgottenWorld
             texture.SetPixels(pixels);
             texture.Apply();
             return Sprite.Create(texture,new Rect(0,0,width,height),new Vector2(0.5f,0.5f),16);
-        }
-
-        private Color SkinColor(string skin)
-        {
-            switch (skin)
-            {
-                case "Forest Warden": return new Color(0.29f, 0.48f, 0.31f);
-                case "Royal Guard": return new Color(0.62f, 0.43f, 0.20f);
-                case "Frostbound": return new Color(0.55f, 0.72f, 0.78f);
-                default: return new Color(0.68f, 0.53f, 0.38f);
-            }
-        }
-
-        private Color WeaponColor(string weapon)
-        {
-            switch (weapon)
-            {
-                case "Oak Longsword": return new Color(0.65f, 0.48f, 0.25f);
-                case "Copper Saber": return new Color(0.75f, 0.40f, 0.24f);
-                case "Moonsteel Blade": return new Color(0.58f, 0.78f, 0.86f);
-                default: return new Color(0.55f, 0.56f, 0.57f);
-            }
-        }
-
-        private void Attack()
-        {
-            attackTime = 0.28f;
-            weaponTransform.localRotation = Quaternion.Euler(0, 0, -95);
-            CancelInvoke(nameof(ResetWeapon));
-            Invoke(nameof(ResetWeapon), 0.28f);
-            int hits = 0;
-            SlimeEnemy[] enemiesInWorld = FindObjectsOfType<SlimeEnemy>();
-            foreach (SlimeEnemy enemy in enemiesInWorld)
-            {
-                if (Vector2.Distance(transform.position, enemy.transform.position) <= 1.9f)
-                {
-                    enemy.TakeHit(1);
-                    hits++;
-                }
-            }
-            notice = hits > 0 ? save.weapon + " hit " + hits + " slime(s)!" : save.weapon + " swing!";
-        }
-
-        private void OnSlimeDefeated()
-        {
-            save.coins += 5;
-            save.gel += 1;
-            notice = "Slime defeated! +5 coins, +1 gel";
-            SaveGame();
-        }
-
-        private void ResetWeapon()
-        {
-            if (weaponTransform != null) weaponTransform.localRotation = Quaternion.identity;
         }
 
         private void GatherNearby()
@@ -330,13 +229,21 @@ namespace ForgottenWorld
             SaveGame();
         }
 
-        private void EquipWeapon(int index)
+        private void BefriendNearbySlime()
         {
-            if (index < 0 || index >= weapons.Length) return;
-            save.weapon = weapons[index];
-            if (weaponRenderer != null) weaponRenderer.sprite = WeaponSprite(save.weapon);
-            if (weaponTransform != null) weaponTransform.name = "Equipped weapon - " + save.weapon;
-            notice = "Equipped " + save.weapon;
+            ForestSlime[] slimes = FindObjectsOfType<ForestSlime>();
+            ForestSlime closest = null;
+            float best = 2.2f;
+            foreach (ForestSlime slime in slimes)
+            {
+                float distance = Vector2.Distance(transform.position, slime.transform.position);
+                if (distance < best) { best = distance; closest = slime; }
+            }
+            if (closest == null) { notice = "No friendly slime nearby."; return; }
+            closest.Befriend();
+            save.companions++;
+            save.gel++;
+            notice = "A little slime joined your journey! Companions: " + save.companions;
             SaveGame();
         }
 
@@ -365,7 +272,7 @@ namespace ForgottenWorld
         private void BuildStyles()
         {
             titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 23, fontStyle = FontStyle.Bold, normal = { textColor = Parchment } };
-            bodyStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Ink }, wordWrap = true };
+            bodyStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = new Color(0.16f,0.13f,0.10f) }, wordWrap = true };
             buttonStyle = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
         }
 
@@ -378,28 +285,26 @@ namespace ForgottenWorld
             GUI.Box(new Rect(14, 14, 430, 92), GUIContent.none);
             GUI.color = Color.white;
             GUI.Label(new Rect(28, 19, 400, 32), "FORGOTTEN WORLD", titleStyle);
-            GUI.Label(new Rect(30, 54, 390, 26), "THE ELDERWOOD  •  " + save.weapon + "  •  " + save.coins + " coins", new GUIStyle(bodyStyle) { normal = { textColor = Parchment } });
-            GUI.Label(new Rect(30, 78, 390, 22), "A / D move     SPACE jump     J attack     E gather     I inventory", new GUIStyle(bodyStyle) { normal = { textColor = Parchment }, fontSize = 11 });
+            GUI.Label(new Rect(30, 54, 390, 26), "THE ELDERWOOD  •  " + save.coins + " coins  •  " + save.companions + " companions", new GUIStyle(bodyStyle) { normal = { textColor = Parchment } });
+            GUI.Label(new Rect(30, 78, 390, 22), "A / D move   SPACE jump   E gather   F befriend   I inventory   U account", new GUIStyle(bodyStyle) { normal = { textColor = Parchment }, fontSize = 11 });
             GUI.Label(new Rect(20, Screen.height / scale - 38, 700, 28), notice, new GUIStyle(bodyStyle) { normal = { textColor = Parchment } });
-
             if (inventoryOpen)
             {
                 GUI.color = Parchment;
                 GUI.Box(new Rect(470, 18, 390, 410), GUIContent.none);
-                GUI.color = Ink;
+                GUI.color = Color.black;
                 GUI.Label(new Rect(492, 34, 340, 35), "Adventurer's Satchel", titleStyle);
                 GUI.Label(new Rect(492, 78, 340, 24), "Materials   Wood " + save.wood + "   Stone " + save.stone + "   Crystal " + save.crystal + "   Gel " + save.gel, bodyStyle);
-                GUI.Label(new Rect(492, 112, 340, 24), "Weapons", bodyStyle);
-                for (int i = 0; i < weapons.Length; i++)
-                    if (GUI.Button(new Rect(492, 142 + i * 36, 330, 30), (i + 1) + ". " + weapons[i] + (save.weapon == weapons[i] ? "  ✓" : ""), buttonStyle))
-                        EquipWeapon(i);
-                GUI.Label(new Rect(492, 300, 340, 24), "Outfits", bodyStyle);
+                GUI.Label(new Rect(492, 112, 340, 24), "Outfits", bodyStyle);
                 for (int i = 0; i < skins.Length; i++)
-                    if (GUI.Button(new Rect(492 + (i % 2) * 166, 330 + (i / 2) * 34, 160, 29), skins[i] + (save.skin == skins[i] ? " ✓" : ""), buttonStyle))
+                    if (GUI.Button(new Rect(492 + (i % 2) * 166, 148 + (i / 2) * 38, 160, 32), skins[i] + (save.skin == skins[i] ? " ✓" : ""), buttonStyle))
                         EquipSkin(skins[i]);
+                GUI.Label(new Rect(492, 242, 340, 24), "Companions: " + save.companions, bodyStyle);
+                GUI.Label(new Rect(492, 272, 340, 60), "Find gentle forest slimes and press F nearby to befriend them. They will follow you.", bodyStyle);
                 if (GUI.Button(new Rect(492, 400, 330, 24), "Close  [I]", buttonStyle)) inventoryOpen = false;
             }
             GUI.matrix = Matrix4x4.identity;
+            GUI.color = Color.white;
         }
     }
 }
