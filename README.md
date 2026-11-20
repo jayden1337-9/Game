@@ -13,6 +13,9 @@ A 2D medieval-fantasy sandbox RPG being rebuilt in **Unity 2022.3 LTS**, with a 
 
 The Unity project is the active client. The current foundation includes:
 - A generated side-view world with ground, trees, distant hills and crystal formations.
+- Wandering forest slimes with basic chase behavior, melee hits, and coin/gel rewards.
+- Nearby gathering from tree and crystal resource nodes.
+- Distinct pixel-art character outfit sprites and weapon silhouettes.
 - Rigidbody-based movement and jumping.
 - Weapon switching, visible weapon variants and a swing action.
 - Four selectable outfit appearances.
@@ -26,6 +29,7 @@ This is an early playable foundation, not a finished port. The previous Godot pr
 - J: swing equipped weapon.
 - E: gather materials.
 - I: inventory.
+- U: account sign-in and profile panel.
 - 1–4: switch weapon.
 
 ## Build requirements
