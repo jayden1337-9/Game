@@ -164,7 +164,7 @@ namespace ForgottenWorld
             var go = new GameObject("Player - " + save.skin);
             go.transform.position = spawnPoint;
             playerRenderer = go.AddComponent<SpriteRenderer>();
-            playerRenderer.sprite = PixelSprite(SkinColor(save.skin), 12, 20);
+            playerRenderer.sprite = SkinSprite(save.skin);
             playerRenderer.sortingOrder = 5;
             body = go.AddComponent<Rigidbody2D>();
             body.freezeRotation = true;
@@ -177,7 +177,7 @@ namespace ForgottenWorld
             weapon.transform.localPosition = new Vector3(0.48f, -0.05f, 0);
             weaponTransform = weapon.transform;
             weaponRenderer = weapon.AddComponent<SpriteRenderer>();
-            weaponRenderer.sprite = PixelSprite(WeaponColor(save.weapon), 4, 17);
+            weaponRenderer.sprite = WeaponSprite(save.weapon);
             weaponRenderer.sortingOrder = 7;
         }
 
@@ -202,6 +202,59 @@ namespace ForgottenWorld
             Sprite sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 16);
             SpriteCache[key] = sprite;
             return sprite;
+        }
+
+        private Sprite SkinSprite(string skin)
+        {
+            const int w = 16, h = 24;
+            Color[] pixels = new Color[w * h];
+            Color cloth = new Color(0.47f, 0.35f, 0.24f);
+            Color trim = new Color(0.72f, 0.55f, 0.29f);
+            Color skinTone = new Color(0.78f, 0.59f, 0.42f);
+            if (skin == "Forest Warden") { cloth = new Color(0.22f, 0.39f, 0.24f); trim = new Color(0.48f, 0.58f, 0.31f); }
+            if (skin == "Royal Guard") { cloth = new Color(0.55f, 0.20f, 0.16f); trim = new Color(0.86f, 0.65f, 0.25f); }
+            if (skin == "Frostbound") { cloth = new Color(0.40f, 0.60f, 0.70f); trim = new Color(0.78f, 0.86f, 0.87f); }
+            Action<int,int,Color> put = (x,y,color) => { if (x >= 0 && x < w && y >= 0 && y < h) pixels[y*w+x] = color; };
+            for (int y=1;y<=6;y++) { for(int x=3;x<=6;x++) put(x,y,new Color(0.22f,0.19f,0.17f)); for(int x=9;x<=12;x++) put(x,y,new Color(0.22f,0.19f,0.17f)); }
+            for (int y=7;y<=15;y++) for(int x=2;x<=13;x++) put(x,y,cloth);
+            for (int x=2;x<=13;x++) put(x,8,trim);
+            for (int y=16;y<=22;y++) for(int x=4;x<=11;x++) put(x,y,skinTone);
+            for (int x=3;x<=12;x++) put(x,22,trim);
+            for (int x=4;x<=11;x++) put(x,23,skin == "Royal Guard" ? trim : cloth);
+            if (skin == "Forest Warden") { for(int x=2;x<=13;x++) put(x,21,trim); put(1,18,cloth); put(14,18,cloth); }
+            if (skin == "Royal Guard") { for(int x=3;x<=12;x++) put(x,23,trim); put(7,23,new Color(0.9f,0.78f,0.38f)); }
+            if (skin == "Frostbound") { for(int y=17;y<=23;y++) { put(3,y,trim); put(12,y,trim); } }
+            return CreatePixelSprite(pixels,w,h);
+        }
+
+        private Sprite WeaponSprite(string weapon)
+        {
+            const int w=10, h=24;
+            Color[] pixels = new Color[w*h];
+            Color blade = WeaponColor(weapon);
+            Color handle = new Color(0.25f,0.16f,0.10f);
+            Color guard = new Color(0.76f,0.57f,0.25f);
+            Action<int,int,Color> put = (x,y,color) => { if(x>=0 && x<w && y>=0 && y<h) pixels[y*w+x]=color; };
+            for(int y=2;y<=7;y++) put(4,y,handle);
+            for(int x=1;x<=8;x++) put(x,8,guard);
+            for(int y=9;y<=22;y++)
+            {
+                int half = y < 12 ? 2 : (y < 19 ? 1 : 0);
+                int center = weapon == "Copper Saber" && y > 13 ? 5 : 4;
+                for(int x=center-half;x<=center+half;x++) put(x,y,blade);
+                put(center-half,y,blade*0.78f);
+            }
+            put(4,23,blade);
+            return CreatePixelSprite(pixels,w,h);
+        }
+
+        private Sprite CreatePixelSprite(Color[] pixels, int width, int height)
+        {
+            var texture = new Texture2D(width,height,TextureFormat.RGBA32,false);
+            texture.filterMode = FilterMode.Point;
+            texture.SetPixels(pixels);
+            texture.Apply();
+            return Sprite.Create(texture,new Rect(0,0,width,height),new Vector2(0.5f,0.5f),16);
         }
 
         private Color SkinColor(string skin)
@@ -281,7 +334,7 @@ namespace ForgottenWorld
         {
             if (index < 0 || index >= weapons.Length) return;
             save.weapon = weapons[index];
-            if (weaponRenderer != null) weaponRenderer.color = WeaponColor(save.weapon);
+            if (weaponRenderer != null) weaponRenderer.sprite = WeaponSprite(save.weapon);
             if (weaponTransform != null) weaponTransform.name = "Equipped weapon - " + save.weapon;
             notice = "Equipped " + save.weapon;
             SaveGame();
@@ -290,7 +343,7 @@ namespace ForgottenWorld
         private void EquipSkin(string skin)
         {
             save.skin = skin;
-            if (playerRenderer != null) playerRenderer.color = SkinColor(skin);
+            if (playerRenderer != null) playerRenderer.sprite = SkinSprite(skin);
             notice = "Equipped " + skin + " outfit";
             SaveGame();
         }
