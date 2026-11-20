@@ -1,28 +1,52 @@
-name: Windows build
-
-concurrency:
-  group: windows-build-${{ github.ref }}
-  cancel-in-progress: true
+name: Unity Windows build
 
 on:
-  workflow_dispatch:
   push:
     branches: [main]
-    paths: ["game/**", ".github/workflows/windows-build.yml"]
+    paths:
+      - "unity/**"
+      - "server/**"
+      - ".github/workflows/windows-build.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "unity/**"
+      - "server/**"
+      - ".github/workflows/windows-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: unity-windows-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  export:
+  windows:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: chickensoft-games/setup-godot@v2
+      - name: Build Unity Windows player
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
-          version: 4.3.0
-          use-dotnet: false
-          include-templates: true
-      - run: mkdir -p build && godot --headless --path game --editor --quit --import && godot --headless --path game --script res://tests/smoke_test.gd --check-only && timeout 90s godot --headless --path game --script res://tests/smoke_test.gd && timeout 180s godot --headless --path game --export-release "Windows Desktop" ../build/ForgottenWorld.exe
+          projectPath: unity
+          unityVersion: 2022.3.50f1
+          targetPlatform: StandaloneWindows64
+          buildMethod: ForgottenWorld.Editor.BuildWindows
+          allowDirtyBuild: true
+      - name: Package game and server source
+        run: |
+          mkdir -p release
+          cp -R unity/Build/Windows release/Windows
+          cp README.md release/README.txt
+          cp -R server release/server
+          rm -rf release/server/tests release/server/__pycache__
+          cd release
+          zip -r ../ForgottenWorld-Windows.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: ForgottenWorld-Windows
-          path: build/
+          name: ForgottenWorld-Windows-ZIP
+          path: ForgottenWorld-Windows.zip
+          if-no-files-found: error
+          retention-days: 30
