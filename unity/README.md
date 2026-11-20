@@ -7,7 +7,8 @@ The active game client is being rebuilt in Unity 2022.3 LTS. The previous Godot 
 - Rigidbody-based movement and jumping.
 - Forest slimes that wander/chase nearby players, can be hit and award coins and gel.
 - Nearby resource gathering from tree trunks and crystal nodes.
-- Four distinct pixel-art outfit sprites and four visually different sword sprites.
+- Four distinct pixel-art outfit sprites.
+- Friendly forest slimes that can be befriended and follow the player.
 - Weapon switching and a swing animation.
 - Inventory panel with material counts and outfit selection.
 - Local JSON save with periodic autosaving.
@@ -16,10 +17,8 @@ The active game client is being rebuilt in Unity 2022.3 LTS. The previous Godot 
 ## Controls
 - A/D or arrow keys: move.
 - Space/W/Up: jump.
-- J: swing equipped sword.
 - E: gather a nearby tree or crystal.
 - I: open/close inventory.
-- 1–4: switch equipped sword.
 - U: open/close account panel.
 
 ## Account setup
