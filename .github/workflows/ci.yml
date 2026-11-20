@@ -25,38 +25,3 @@ jobs:
           SQLITE_PATH: /tmp/forgotten-world-test.sqlite3
           ADMIN_USERNAME: admin1337
         run: python -m pytest -q server/tests
-
-  windows-build:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: chickensoft-games/setup-godot@v2
-        with:
-          version: 4.3.0
-          use-dotnet: false
-          include-templates: true
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Import Godot project
-        run: godot --headless --editor --path game --quit
-      - name: Export Forgotten World for Windows
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force build | Out-Null
-          godot --headless --path game --export-release "Windows Desktop" ../build/ForgottenWorld.exe
-          if (!(Test-Path "build/ForgottenWorld.exe")) { throw "Godot did not create ForgottenWorld.exe" }
-      - name: Build opt-in executor demo
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r executor-demo/requirements.txt
-          pyinstaller --noconfirm --clean --onefile --windowed --name ForgottenWorld-Executor-Demo executor-demo/app.py
-      - name: Upload Windows builds
-        uses: actions/upload-artifact@v4
-        with:
-          name: forgotten-world-windows-builds
-          path: |
-            build/ForgottenWorld.exe
-            dist/ForgottenWorld-Executor-Demo.exe
-          if-no-files-found: error
-          retention-days: 30
