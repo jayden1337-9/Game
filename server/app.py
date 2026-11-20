@@ -32,8 +32,6 @@ def init_db():
     schema=[
     "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT NOT NULL, banned INTEGER NOT NULL DEFAULT 0, ban_reason TEXT)",
     "CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL, hosting TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}', updated_at TEXT NOT NULL)",
-    "CREATE TABLE IF NOT EXISTS demo_sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, started_at REAL NOT NULL, completed INTEGER NOT NULL DEFAULT 0)",
-    "CREATE TABLE IF NOT EXISTS demo_bans (user_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS wallets (user_id TEXT PRIMARY KEY, coins INTEGER NOT NULL DEFAULT 0)",
     "CREATE TABLE IF NOT EXISTS dev_inventory (user_id TEXT NOT NULL, item_id TEXT NOT NULL, quantity INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(user_id,item_id))",
     "CREATE TABLE IF NOT EXISTS owned_cosmetics (user_id TEXT NOT NULL, cosmetic_id TEXT NOT NULL, PRIMARY KEY(user_id,cosmetic_id))",
@@ -76,10 +74,6 @@ def player():
     u=auth()
     if not u: return None,(jsonify(error="Authentication required"),401)
     if u["banned"]: return None,(jsonify(error="Account is banned",banned=True,reason=u["ban_reason"]),403)
-    with db() as c:
-        cur=c.cursor(); cur.execute(sql("SELECT reason FROM demo_bans WHERE user_id=?"),(u["id"],))
-        demo_ban=asdict(cur.fetchone())
-    if demo_ban: return None,(jsonify(error="DEMO TEST BAN",banned=True,demo_ban=True,reason=demo_ban["reason"]),403)
     return u,None
 
 @app.get("/")
@@ -107,10 +101,6 @@ def login():
         cur=c.cursor(); cur.execute(sql("SELECT * FROM users WHERE username=?"),(str(b.get("username","")).strip(),)); u=asdict(cur.fetchone())
     if not u or not check_password_hash(u["password_hash"],str(b.get("password",""))): return jsonify(error="Invalid username or password"),401
     if u["banned"]: return jsonify(error="Account is banned",banned=True,reason=u["ban_reason"]),403
-    with db() as c:
-        cur=c.cursor(); cur.execute(sql("SELECT reason FROM demo_bans WHERE user_id=?"),(u["id"],))
-        demo_ban=asdict(cur.fetchone())
-    if demo_ban: return jsonify(error="DEMO TEST BAN",banned=True,demo_ban=True,reason=demo_ban["reason"]),403
     return jsonify(token=signer.dumps({"uid":u["id"]}),user={"id":u["id"],"username":u["username"]})
 
 @app.get("/api/me")
@@ -165,85 +155,6 @@ def save_world(wid):
         cur.execute(sql("UPDATE worlds SET data=?,updated_at=? WHERE id=?"),(encoded,now,wid))
         if cur.rowcount==0:return jsonify(error="World not found"),404
     return jsonify(ok=True,updated_at=now)
-
-DEMO_DURATION_SECONDS=900
-
-@app.post("/api/demo-exploit/start")
-def demo_start():
-    u,e=player()
-    if e:return e
-    if u["username"].casefold()==os.getenv("ADMIN_USERNAME","admin1337").strip().casefold():
-        return jsonify(error="The administrator account cannot be used as a demo target"),403
-    body=request.get_json(silent=True) or {}
-    if body.get("confirmed") is not True:
-        return jsonify(error="Explicit demo confirmation is required"),400
-    with db() as c:
-        cur=c.cursor()
-        cur.execute(sql("SELECT id,started_at FROM demo_sessions WHERE user_id=? AND completed=0 ORDER BY started_at DESC"),(u["id"],))
-        existing=asdict(cur.fetchone())
-        if existing:
-            sid=existing["id"]; started_at=existing["started_at"]
-        else:
-            sid=secrets.token_urlsafe(24); started_at=time.time()
-            cur.execute(sql("INSERT INTO demo_sessions (id,user_id,started_at) VALUES (?,?,?)"),(sid,u["id"],started_at))
-    return jsonify(session_id=sid,wait_seconds=max(0,DEMO_DURATION_SECONDS-int(time.time()-started_at)),message="Opt-in Forgotten World demo started")
-
-@app.get("/api/demo-exploit/status")
-def demo_status():
-    u,e=player()
-    if e:return e
-    with db() as c:
-        cur=c.cursor(); cur.execute(sql("SELECT id,started_at,completed FROM demo_sessions WHERE user_id=? ORDER BY started_at DESC"),(u["id"],))
-        session=asdict(cur.fetchone())
-    if not session:return jsonify(active=False,remaining_seconds=0)
-    remaining=max(0,DEMO_DURATION_SECONDS-int(time.time()-session["started_at"]))
-    return jsonify(active=not bool(session["completed"]),session_id=session["id"],remaining_seconds=remaining)
-
-@app.post("/api/demo-exploit/finish")
-def demo_finish():
-    u,e=player()
-    if e:return e
-    sid=str((request.get_json(silent=True) or {}).get("session_id",""))
-    with db() as c:
-        cur=c.cursor(); cur.execute(sql("SELECT * FROM demo_sessions WHERE id=? AND user_id=? AND completed=0"),(sid,u["id"])); s=asdict(cur.fetchone())
-        if not s:return jsonify(error="Demo session not found"),404
-        remaining=max(0,DEMO_DURATION_SECONDS-int(time.time()-s["started_at"]))
-        if remaining:return jsonify(error="Demo is still running",remaining_seconds=remaining),425
-        cur.execute(sql("UPDATE demo_sessions SET completed=1 WHERE id=?"),(sid,))
-        cur.execute(sql("INSERT INTO demo_bans (user_id,session_id,reason,created_at) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET session_id=excluded.session_id,reason=excluded.reason,created_at=excluded.created_at"),(u["id"],sid,"HAHA GET BANNED BUDDY — reversible demo test ban",datetime.now(timezone.utc).isoformat()))
-    return jsonify(banned=True,demo_ban=True,message="HAHA GET BANNED BUDDY",reason="Reversible Forgotten World demo test ban. An administrator can clear it.")
-
-@app.post("/api/admin/demo-unban")
-def admin_demo_unban():
-    u=auth()
-    if not u:return jsonify(error="Authentication required"),401
-    admin_name=os.getenv("ADMIN_USERNAME","admin1337").strip().casefold()
-    if u["username"].casefold()!=admin_name:return jsonify(error="Administrator access required"),403
-    body=request.get_json(silent=True) or {}
-    target_id=str(body.get("user_id","")).strip()
-    target_username=str(body.get("username","")).strip()
-    if not target_id and target_username:
-        with db() as c:
-            cur=c.cursor(); cur.execute(sql("SELECT id FROM users WHERE username=?"),(target_username,))
-            target=asdict(cur.fetchone())
-            target_id=target["id"] if target else ""
-    if not target_id:return jsonify(error="A valid user_id or username is required"),400
-    with db() as c:
-        cur=c.cursor(); cur.execute(sql("DELETE FROM demo_bans WHERE user_id=?"),(target_id,))
-        cleared=cur.rowcount>0
-    return jsonify(ok=True,cleared=cleared)
-
-
-
-# Currency and cosmetic catalog. Prices and ownership are checked server-side.
-COSMETICS = {
-    "forest_cape": {"name":"Forest Cape","slot":"cape","price":120,"description":"A green adventurer's cape."},
-    "ember_cape": {"name":"Ember Cape","slot":"cape","price":300,"description":"A warm, glowing red cape."},
-    "royal_crown": {"name":"Royal Crown","slot":"head","price":500,"description":"A small golden crown."},
-    "moon_halo": {"name":"Moon Halo","slot":"head","price":750,"description":"A pale celestial halo."},
-    "slime_buddy": {"name":"Slime Buddy","slot":"pet","price":400,"description":"A tiny companion that follows you."},
-    "pixel_aura": {"name":"Pixel Aura","slot":"aura","price":900,"description":"A shimmering pixel aura."}
-}
 
 @app.get("/api/profile")
 def profile():
