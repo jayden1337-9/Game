@@ -13,6 +13,7 @@ namespace ForgottenWorld
             public int wood = 0;
             public int stone = 0;
             public int gel = 0;
+            public int crystal = 0;
             public string weapon = "Rusty Sword";
             public string skin = "Wayfarer";
         }
@@ -114,7 +115,7 @@ namespace ForgottenWorld
 
         private void MakeTree(Transform parent, int x, int y)
         {
-            for (int h = 0; h < 4; h++) MakeBlock(parent, x, y + h, new Color(0.30f, 0.19f, 0.12f), 1, false);
+            for (int h = 0; h < 4; h++) MakeBlock(parent, x, y + h, new Color(0.30f, 0.19f, 0.12f), 1, false, h == 0 ? "wood" : null);
             for (int dx = -2; dx <= 2; dx++)
                 for (int dy = 3; dy <= 6; dy++)
                     if (Mathf.Abs(dx) + Mathf.Abs(dy - 4) < 4)
@@ -123,11 +124,11 @@ namespace ForgottenWorld
 
         private void MakeCrystal(Transform parent, int x, int y)
         {
-            MakeBlock(parent, x, y, new Color(0.34f, 0.66f, 0.69f), 2, false);
+            MakeBlock(parent, x, y, new Color(0.34f, 0.66f, 0.69f), 2, false, "crystal");
             MakeBlock(parent, x, y + 1, new Color(0.45f, 0.78f, 0.78f), 2, false);
         }
 
-        private void MakeBlock(Transform parent, int x, int y, Color color, int sortingOrder, bool solid = true)
+        private void MakeBlock(Transform parent, int x, int y, Color color, int sortingOrder, bool solid = true, string resource = null)
         {
             var go = new GameObject(solid ? "Ground tile" : "World prop");
             go.transform.SetParent(parent);
@@ -136,6 +137,12 @@ namespace ForgottenWorld
             sr.sprite = PixelSprite(color);
             sr.sortingOrder = sortingOrder;
             if (solid) go.AddComponent<BoxCollider2D>();
+            if (!string.IsNullOrEmpty(resource))
+            {
+                var trigger = go.AddComponent<BoxCollider2D>();
+                trigger.isTrigger = true;
+                go.AddComponent<ResourceNode>().resource = resource;
+            }
         }
 
         private void BuildPlayer()
@@ -221,9 +228,20 @@ namespace ForgottenWorld
 
         private void GatherNearby()
         {
-            save.wood += 1;
-            if (UnityEngine.Random.value < 0.35f) save.stone += 1;
-            notice = "Gathered nearby materials. Wood: " + save.wood + "  Stone: " + save.stone;
+            ResourceNode[] nodes = FindObjectsOfType<ResourceNode>();
+            ResourceNode closest = null;
+            float best = 2.5f;
+            foreach (ResourceNode node in nodes)
+            {
+                float distance = Vector2.Distance(transform.position, node.transform.position);
+                if (distance < best) { best = distance; closest = node; }
+            }
+            if (closest == null) { notice = "No resources nearby. Find a tree or crystal cluster."; return; }
+            string resource = closest.resource;
+            if (resource == "wood") save.wood++;
+            else if (resource == "crystal") save.crystal++;
+            notice = "Gathered " + resource + ". Wood " + save.wood + "  Crystal " + save.crystal;
+            Destroy(closest.gameObject);
             SaveGame();
         }
 
@@ -285,7 +303,7 @@ namespace ForgottenWorld
                 GUI.Box(new Rect(470, 18, 390, 410), GUIContent.none);
                 GUI.color = Ink;
                 GUI.Label(new Rect(492, 34, 340, 35), "Adventurer's Satchel", titleStyle);
-                GUI.Label(new Rect(492, 78, 340, 24), "Materials   Wood " + save.wood + "   Stone " + save.stone + "   Gel " + save.gel, bodyStyle);
+                GUI.Label(new Rect(492, 78, 340, 24), "Materials   Wood " + save.wood + "   Stone " + save.stone + "   Crystal " + save.crystal, bodyStyle);
                 GUI.Label(new Rect(492, 112, 340, 24), "Weapons", bodyStyle);
                 for (int i = 0; i < weapons.Length; i++)
                     if (GUI.Button(new Rect(492, 142 + i * 36, 330, 30), (i + 1) + ". " + weapons[i] + (save.weapon == weapons[i] ? "  ✓" : ""), buttonStyle))
