@@ -105,6 +105,7 @@ namespace ForgottenWorld
                 }
                 if (x % 13 == 0) MakeTree(world.transform, x, surface + 1);
                 if (x % 19 == 7) MakeCrystal(world.transform, x, surface + 1);
+                if (x % 17 == 5) MakeSlime(world.transform, x, surface + 1);
             }
             var hill = new GameObject("Distant hills");
             hill.transform.position = new Vector3(0, 1.4f, 5);
@@ -120,6 +121,18 @@ namespace ForgottenWorld
                 for (int dy = 3; dy <= 6; dy++)
                     if (Mathf.Abs(dx) + Mathf.Abs(dy - 4) < 4)
                         MakeBlock(parent, x + dx, y + dy, new Color(0.23f, 0.36f, 0.22f), 1, false);
+        }
+
+        private void MakeSlime(Transform parent, int x, int y)
+        {
+            var enemy = new GameObject("Forest Slime");
+            enemy.transform.SetParent(parent);
+            enemy.transform.position = new Vector3(x, y + 0.35f, 0);
+            var renderer = enemy.AddComponent<SpriteRenderer>();
+            renderer.sprite = PixelSprite(new Color(0.40f, 0.63f, 0.34f), 15, 11);
+            renderer.sortingOrder = 4;
+            enemy.AddComponent<BoxCollider2D>().isTrigger = true;
+            enemy.AddComponent<SlimeEnemy>().Initialize(transform);
         }
 
         private void MakeCrystal(Transform parent, int x, int y)
@@ -218,7 +231,25 @@ namespace ForgottenWorld
             weaponTransform.localRotation = Quaternion.Euler(0, 0, -95);
             CancelInvoke(nameof(ResetWeapon));
             Invoke(nameof(ResetWeapon), 0.28f);
-            notice = save.weapon + " swing!";
+            int hits = 0;
+            SlimeEnemy[] enemiesInWorld = FindObjectsOfType<SlimeEnemy>();
+            foreach (SlimeEnemy enemy in enemiesInWorld)
+            {
+                if (Vector2.Distance(transform.position, enemy.transform.position) <= 1.9f)
+                {
+                    enemy.TakeHit(1);
+                    hits++;
+                }
+            }
+            notice = hits > 0 ? save.weapon + " hit " + hits + " slime(s)!" : save.weapon + " swing!";
+        }
+
+        private void OnSlimeDefeated()
+        {
+            save.coins += 5;
+            save.gel += 1;
+            notice = "Slime defeated! +5 coins, +1 gel";
+            SaveGame();
         }
 
         private void ResetWeapon()
@@ -303,7 +334,7 @@ namespace ForgottenWorld
                 GUI.Box(new Rect(470, 18, 390, 410), GUIContent.none);
                 GUI.color = Ink;
                 GUI.Label(new Rect(492, 34, 340, 35), "Adventurer's Satchel", titleStyle);
-                GUI.Label(new Rect(492, 78, 340, 24), "Materials   Wood " + save.wood + "   Stone " + save.stone + "   Crystal " + save.crystal, bodyStyle);
+                GUI.Label(new Rect(492, 78, 340, 24), "Materials   Wood " + save.wood + "   Stone " + save.stone + "   Crystal " + save.crystal + "   Gel " + save.gel, bodyStyle);
                 GUI.Label(new Rect(492, 112, 340, 24), "Weapons", bodyStyle);
                 for (int i = 0; i < weapons.Length; i++)
                     if (GUI.Button(new Rect(492, 142 + i * 36, 330, 30), (i + 1) + ". " + weapons[i] + (save.weapon == weapons[i] ? "  ✓" : ""), buttonStyle))
