@@ -1,115 +1,71 @@
 # Forgotten World
 
-A Terraria-inspired 2D sandbox RPG prototype built with Godot 4 and a Flask account/world service.
+A 2D medieval-fantasy sandbox RPG being rebuilt in **Unity 2022.3 LTS**, with a Flask account/world service.
 
 ## Repository
-- `game/`: Godot client.
+- `unity/`: new Unity client and Windows build project.
+- `game/`: archived Godot prototype retained as a migration reference only.
 - `server/`: Flask API, SQLite/PostgreSQL persistence and automated tests.
-- `executor-demo/`: opt-in, harmless executor-style visual simulator.
-- `.github/workflows/ci.yml`: backend regression tests and Windows executable builds.
+- `.github/workflows/windows-build.yml`: Unity Windows build and ZIP packaging.
+- `.github/workflows/ci.yml`: backend regression tests.
 
-## Gameplay
-- Six procedural biomes: Forest, Mushroom Fields, Crystal Caverns, Frostreach, Ashlands and Sunken Ruins.
-- Biome-specific terrain and resources, including crystals, ice, snow, sand, herbs and ancient relics.
-- Distinct crystal formations, frost trees, mushroom growths and ancient brick ruins with collectible relic caches.
-- Slime, Fungus, Ash Slime, Crystal Mote, Frost Wisp and Sand Beetle creatures.
-- Exploration journal with gathering and discovery quests that award local coins.
-- Movement, jumping, mining, block placement, a four-slot hotbar, inventory and crafting.
-- Local cosmetics: craftable Leaf Crown, Wooden Mask and Slime Hat; Forest Cape, Royal Crown and Slime Buddy.
-- Local world autosave every 30 seconds to `user://world_save.json`.
-- Remote player display and tile-change relay in shared worlds.
+## Unity migration status
+
+The Unity project is the active client. The current foundation includes:
+- A generated side-view world with ground, trees, distant hills and crystal formations.
+- Rigidbody-based movement and jumping.
+- Weapon switching, visible weapon variants and a swing action.
+- Four selectable outfit appearances.
+- Material gathering, inventory UI and local JSON autosaving.
+
+This is an early playable foundation, not a finished port. The previous Godot prototype had more systems than have been migrated so far. Multiplayer, account integration, full crafting, enemy AI/combat, complete biome generation and Discord Rich Presence still require implementation and testing. The old Godot workflows are no longer used for releases.
 
 ## Controls
 - A/D or arrow keys: move.
-- Space: jump.
-- Left click: mine nearby blocks.
-- Right click: place the selected hotbar block.
-- 1-4: select hotbar slot.
-- C: crafting panel; use 1-9 to craft.
-- I: equipment panel.
-- M: local cosmetic crafting stall.
-- Q: adventurer journal and quest progress.
-- U: account, persistent wallet, online cosmetic shop and world-sharing panel.
-- F2: administrator test-grant panel (available to the configured admin account).
+- Space/W/Up: jump.
+- J: swing equipped weapon.
+- E: gather materials.
+- I: inventory.
+- 1–4: switch weapon.
+
+## Build requirements
+
+The GitHub Actions Unity workflow uses Unity 2022.3.50f1. Repository maintainers must add a valid Unity license as the `UNITY_LICENSE` Actions secret before the hosted build can run. A successful run publishes one `ForgottenWorld-Windows-ZIP` artifact containing the Windows player and server source.
 
 ## Run the account server
+
 Local development:
 ```bash
 cd server
 python -m pip install -r requirements.txt
 python app.py
 ```
-The local default uses SQLite. For production, set `DATABASE_URL` to PostgreSQL, set a long random `SECRET_KEY`, and set `CORS_ORIGINS` to the origins you actually need.
 
 Wispbyte startup command:
 ```bash
 pip install -U --prefix .local -r server/requirements.txt
 /usr/local/bin/python /home/container/server/app.py
 ```
-Set `PORT`, `SECRET_KEY`, and `DATABASE_URL` in the Wispbyte environment panel. To bootstrap the administrator account, set `ADMIN_USERNAME=admin1337` and set `ADMIN_PASSWORD` to the password you chose in the private environment settings. The server stores only a password hash. Do not put the password in GitHub, source files, screenshots, or chat logs. The admin username is automatically allowed to use the in-game F2 test-grant panel. Additional developer usernames can optionally be listed in `DEV_ADMIN_USERNAMES`. The application initializes its schema on import, so Gunicorn can also load `app:app` from the server directory.
 
-## Accounts and persistent economy
-- Register and log in from the in-game panel (U).
-- The session token and server URL are saved locally in `user://account.cfg`.
-- `GET /api/profile`: wallet balance, owned cosmetics and equipped cosmetic.
-- `GET /api/shop`: catalogue with current ownership.
-- `POST /api/shop/buy`: atomic, server-validated cosmetic purchase.
-- `POST /api/cosmetics/equip`: equip an owned cosmetic.
-- `POST /api/currency/daily`: claim 100 coins once per UTC day.
-- `POST /api/currency/reward`: claim a fixed 5-coin slime defeat reward, with duplicate protection and a 200-coin daily gameplay reward cap.
+Set `PORT`, `SECRET_KEY`, and `DATABASE_URL` in the Wispbyte environment panel. The server binds to `0.0.0.0`. For production, use PostgreSQL and a long random secret key.
 
-Online enemy rewards update the account wallet; offline play uses the local save's coin balance. The online shop is persistent and separate from the local crafting stall.
+To bootstrap the administrator account, set `ADMIN_USERNAME=admin1337` and choose `ADMIN_PASSWORD` in the private environment settings. The password is hashed before storage; never commit it to GitHub.
 
-## Administrator account
+## Existing backend capabilities
 
-The server can bootstrap `admin1337` when `ADMIN_USERNAME` and `ADMIN_PASSWORD` are set in the host's private environment variables. The password is hashed before it is stored. The admin account can use the in-game F2 test-grant panel and clear reversible demo test bans through `POST /api/admin/demo-unban` with a `username` or `user_id`. Never commit the password or a production `SECRET_KEY` to this repository.
+The Flask service currently supports:
+- Account registration and login.
+- Persistent wallet, cosmetic ownership and equipment.
+- Daily currency claims and capped, duplicate-protected gameplay rewards.
+- World creation, invite codes, shared saves and event relay.
+- Admin-only developer grants.
 
-## Executor-style demo
-
-The separate `ForgottenWorld-Executor-Demo.exe` is an opt-in visual simulator. It does not inject into processes, execute user-supplied scripts, modify another game, or inspect the computer. The user signs into their Forgotten World account and explicitly confirms; the 15-minute server-side timer begins immediately after that sign-in step (the app needs an account identity before it can register the session). When the timer ends, the server applies a reversible demo-only account lock. The configured admin account can clear it. Closing and reopening the app does not reset an existing session; the server timestamp is authoritative.
-
-The demo executable and game executable are built by GitHub Actions. Open the repository's Actions tab, select the latest successful `Forgotten World CI` run, and download the `forgotten-world-windows-builds` artifact.
-
-## Shared worlds
-- Create a world and invite code in the in-game U panel.
-- Friends register/log in, enter the invite code and join.
-- The client relays player positions and block edits, and periodically uploads a compact world snapshot.
-- World data and memberships are stored by the server.
-
-This is a small polling-based multiplayer prototype, not a production authoritative game server. Enemy health, combat outcomes, and anti-cheat validation are not yet authoritative or synchronised. Avoid treating it as secure against modified clients.
-
-## Automated checks
-- GitHub Actions runs the backend tests and builds both Windows executables on pushes and pull requests.
-- Downloadable Windows builds are attached to successful workflow runs as the `forgotten-world-windows-builds` artifact.
-- Do not consider a build ready until the workflow is green.
+The Unity client has not yet been connected to all of these endpoints.
 
 ## Discord Rich Presence
 
-The game includes a pure-GDScript Discord RPC adapter at
-`game/addons/discord_rich_presence/`. It uses the Discord desktop app's
-local IPC connection; it does not use a bot token, client secret, external
-service, or native DLL.
+The previous Discord RPC integration is part of the archived Godot client and is **not yet ported to Unity**. The Unity implementation will need a Windows desktop IPC integration and configured Discord application assets. Do not assume Rich Presence is active in the Unity build yet.
 
-On Windows desktop, Rich Presence shows the current biome, active shared-world
-name (or "Solo World"), and the session start time. It retries if Discord is
-closed and reapplies the latest activity after reconnecting. Unsupported
-platforms (including Android and headless builds) safely do nothing.
+## Quality and release notes
 
-### Configure Discord Rich Presence
-
-1. Open the [Discord Developer Portal](https://discord.com/developers/applications).
-2. Create a new application and copy its **Application ID**. This is a public
-   numeric ID. Do not use a bot token or client secret.
-3. Open `game/project.godot`.
-4. Under `[discord]`, replace the empty value:
-   ```ini
-   [discord]
-   enabled=true
-   application_id="YOUR_NUMERIC_APPLICATION_ID"
-   ```
-5. Run the Windows desktop game while the Discord desktop app is running.
-
-No image assets are required. If you want a quick opt-out, set
-`enabled=false`. The game does not publish account names, invite codes,
-chat messages, or authentication details to Discord.
-
+The backend tests run on pushes and pull requests. The Unity Windows workflow requires the `UNITY_LICENSE` secret. A release is ready only after the workflow succeeds and the packaged game has been tested on Windows.
